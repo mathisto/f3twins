@@ -1,0 +1,5 @@
+# Derived from your game image: never commit
+f3twins-cache/
+*.pkl
+twins.json
+__pycache__/
