@@ -53,7 +53,7 @@ misses:
 - `high` now needs at least one string, RTTI type or non-trivial constant, or two named callees. A pick that rests on
   link-order anchoring alone is capped at `medium`.
 
-**`seeds.json`** holds 79 pairs that were found or confirmed by hand while matching. They are used
+**`seeds.json`** holds 113 pairs that were found or confirmed by hand while matching. They are used
 as extra anchors. Add your own the same way (`{"<F3 addr>": "<FNV addr>"}`), or point `F3TWINS_SEEDS` at another file.
 
 ## How it works
@@ -104,6 +104,9 @@ python f3twins.py validate 0.8
   menu selection functions needed only offsets and inlined getters, then one or two codegen fixes.
 - **Weak spots:** generic container code with nothing distinctive (list removal, array growth) and Havok internals.
 - **Ties:** results can differ slightly between runs where candidates tie.
+
+**Once you have the twin:** [MATCHING_TIPS.md](MATCHING_TIPS.md) collects the VS2005 `/O2` matching techniques from one
+night of about 190 submitted matches, sorted by what the f3check diff shows. Tips that need fnv_decomp are marked.
 
 ## Privacy
 
