@@ -1,22 +1,26 @@
 # Fallout 3 matching: techniques by symptom
 
-These are field notes from one night of matching f3decomp functions (about 190 submitted matches, 33 flag proofs, 85 give-ups), merged and sorted by symptom.
+These are field notes from one night of matching f3decomp functions (194 submitted matches, about 50 flag proofs, 84 give-ups), merged and sorted by symptom.
+
 Target: Fallout 3 PC 1.7.0.3, built with VS2005 SP1 (cl 14.00.50727.762), mostly `/O2` even where the pack lists `/Od`. New Vegas's fnv_decomp is VS2008 and mostly `/Od`: port its source *shapes*. Its codegen will not carry over.
+
 How to use it: find what your f3check diff shows in section 1, then try the levers it points to (sections 2-4). Section 5 covers pack and flag problems, 6 covers tooling, 7 lists what is still open.
-Read the site's `compiler_tips.md` and `large_functions.md` first. This file does not repeat them. Where a finding extends or contradicts them, it says so with a pointer ("cf. tips: <section>").
+
+Read the site's `compiler_tips.md` and `large_functions.md` first. This file does not repeat them. Where a finding extends or contradicts them, it says so with a pointer such as `cf. tips "Frame"` (a section of `compiler_tips.md`).
+
 Tips marked **[needs FNV]** need the fnv_decomp source. The rest are universal. Addresses are FO3 unless marked FNV.
 
 ## Top 10 levers by number of matches tonight
 
 Counted from the night log's outcomes and notes; one function can count under several levers, so counts are rough.
 
-1. **Literal port of the right FNV twin, refined afterwards** (about 150 of the 191 submits had a correct or partly
+1. **Literal port of the right FNV twin, refined afterwards** (about 150 of the 194 submits had a correct or partly
    correct twin). A fresh port beat earlier restructured near misses again and again. **[needs FNV]**
 2. **Re-claiming earlier give-ups** (about 70 matches were functions someone had given up before). Usually the fix was
    a fresh port or one lever below, applied to the saved `best_code`.
-3. **Finding the real twin when twins.py is wrong or low** (38 submits had a wrong twin listed): grep for strings, float
+3. **Finding the real twin when f3twins.py is wrong or low** (38 submits had a wrong twin listed): grep for strings, float
    tuples, sizes, RTTI, or read candidates 2-3 and the neighbours (section 4). **[needs FNV]**
-4. **Flag proofs for `/Od`-listed code that is really `/O2`** (33 proofs, each a MATCH under `--flags`; section 5).
+4. **Flag proofs for `/Od`-listed code that is really `/O2`** (over 30 proofs, each a MATCH under `--flags`; section 5).
 5. **Same-file callee bodies to stop address escape** (`__declspec(noinline)`, `noinline inline`, `noalias`; about 28
    matches; section 2.1).
 6. **Inline getters and FNV getter layers** in place of direct field reads (about 25; section 2.2).
@@ -139,8 +143,8 @@ Extends tips "Escape: define callees from the same file".
   Use an inline getter whose fallback passes the compare (`return process ? process->level : 0;`). `0x004fc020`.
 - *A global read after a call where the original reads it before* -> an inline getter is evaluated ahead of the other
   call in the same expression. `0x00646cc0`.
-- *A bool virtual's result compared with the cached zero* -> the wrapper returns the call's value: `if (!p) return
-  false; return p->IsX();`. `return p && p->IsX();` gives `test`. `0x004ebb30`.
+- *A bool virtual's result compared with the cached zero* -> the wrapper returns the call's value:
+  `if (!p) return false; return p->IsX();`. `return p && p->IsX();` gives `test`. `0x004ebb30`.
 - *An esi/edi swap between a loop index and a list pointer* -> read the loop bound through an inline const getter
   (`j < list->GetSize()`). `0x005e7120`.
 - *A zero cached in `ebx`, or a pointer cursor where the original uses base+offset* -> read the array pointer through
@@ -412,11 +416,11 @@ Extends tips "Constructors, destructors, exceptions".
 - *Havok `new hkX` that will not take your class* -> derive a stand-in with a static `operator new` calling
   `allocateChunk` and an undefined ctor (it binds by position). Redefining the pack's class was silently ignored.
   `0x00904470`.
-- *Havok thread-memory stack alloc with a stack temp and a reload* -> make it single-exit (`char* p = cur; if (p + n
-  <= end) cur = p + n; else p = allocSlow(n); return p;`; -94 lines). The rounding is `(n + 16) & ~15`, with a `ret`
+- *Havok thread-memory stack alloc with a stack temp and a reload* -> make it single-exit
+  (`char* p = cur; if (p + n <= end) cur = p + n; else p = allocSlow(n); return p;`; -94 lines). The rounding is `(n + 16) & ~15`, with a `ret`
   local assigned in both arms. `0x00705930`, `0x009efd00`.
-- *Havok `hkArray` release* -> `if ((m_capacityAndFlags & 0x80000000) == 0) dealloc(..., getCapacity() * sizeof(T),
-  0x17);` with an inline `getCapacity()`. A temp's release and a local's dtor can need different forms in one function.
+- *Havok `hkArray` release* ->
+  `if ((m_capacityAndFlags & 0x80000000) == 0) dealloc(..., getCapacity() * sizeof(T), 0x17);` with an inline `getCapacity()`. A temp's release and a local's dtor can need different forms in one function.
   `0x0091fdb0`, `0x009a1000`. A `pushBack` grow copy with two cursors wants `noalias` on the swap (`0x009a1000`).
 - *An inlined 12-byte Havok `delete`* -> `deallocateChunkConstSize` in Havok's `FreeList::put` order. 207 to 2,
   `0x00a63f10`.
@@ -488,8 +492,8 @@ Extends tips "Constants" and "Library and system calls".
 
 ### 2.14 String literals, extern arrays and reworks
 
-- *An inline `strcpy` as a byte loop where a literal gives dword moves* -> the source is an `extern const char
-  DAT_<addr>[];` of unknown length. `0x00533a20`.
+- *An inline `strcpy` as a byte loop where a literal gives dword moves* -> the source is an
+  `extern const char DAT_<addr>[];` of unknown length. `0x00533a20`.
 - *Rework "matches in the pack but not in the project file"* -> the candidate is placed where the pack *declares* the
   target. Use only names declared above that point, use string literals rather than extern arrays (`0x00852f40`), read
   wrongly shaped pack classes through private view structs (`0x0095e4d0`, `0x00a87830`), and give helpers and emitting
@@ -549,7 +553,7 @@ Extends tips "Constants" and "Library and system calls".
   `blk_*_od.cpp` (`0x00773290`), the function next to candidate 1 (`0x005ee080`), candidates 2-3 read for *call order*
   (`0x0069b430`, `0x0060c850`, `0x00713470`, `0x00626e70`, `0x0091fdb0`), the packet's `starting_draft` even at
   similarity 0.32 (`0x005a85f0`, `0x009a1000`), the same body under another name (`0x006c8e30`), and class destructors
-  `~FUN_<fnv>`, which twins.py misses (`0x004f6570`).
+  `~FUN_<fnv>`, which f3twins.py misses (`0x004f6570`).
 - **Twin confidence is only a hint.** A `high` twin backed only by float evidence was wrong (`0x004dd7d0`); `medium`
   twins were unrelated in `0x005f0070`, `0x008d2480` and `0x007bcff0`. `low` twins were right in `0x00497160`,
   `0x007de400`, `0x007b8200`, `0x00743b00` and `0x007c9d80`.
@@ -594,7 +598,7 @@ Most of these need fnv_decomp to grep **[needs FNV]**. The neighbour and library
 ## 5. Pack and flag problems, and how to prove them
 
 - **`/Od`-listed `/O2` code.** Tells: an aligned `esp` frame, `this` in `esi`, no parameter homes, registers read at
-  entry (cf. tips "Frame" and "Inputs in registers"). 33 proofs tonight, many of them x87 Havok (`0x0098fce0`,
+  entry (cf. tips "Frame" and "Inputs in registers"). over 30 proofs tonight, many of them x87 Havok (`0x0098fce0`,
   `0x00a50cd0`, `0x009a1000`) and many plain game code (`0x005357e0`, `0x00540270`, `0x00787580`).
 - **The proof procedure.** Check with `--flags /MT,/O2,/GS,/EHsc,/Gy`, comma-separated: a space-separated list silently
   checks the pack's own flags. On MATCH, save a `checkpoint` (with work notes: `phase: "attempt"` plus `change`,
