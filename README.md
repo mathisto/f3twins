@@ -45,6 +45,17 @@ than in real use:
 
 Treat low as a lead to check, not an answer. On our copy, about 845 open functions up to 1 KB came out high or medium.
 
+**One night of real use** (2026-11-05): about 230 claims were taken from its list. The top twin was right 76% of the
+time, partly right 11% (right model, but Fallout 3 changed or inlined parts), and wrong 13%. Two fixes came out of the
+misses:
+
+- A top pick backed only by float constants is now always `low`; shared floats such as 1.0 and 0.5 misled it.
+- `high` now needs at least one string, RTTI type or non-trivial constant, or two named callees. A pick that rests on
+  link-order anchoring alone is capped at `medium`.
+
+**`seeds.json`** holds 79 pairs that were found or confirmed by hand while matching. They are used
+as extra anchors. Add your own the same way (`{"<F3 addr>": "<FNV addr>"}`), or point `F3TWINS_SEEDS` at another file.
+
 ## How it works
 
 The Steam `FalloutNV.exe` is encrypted on disk, so the New Vegas side is the decomp's *source text*. The Fallout 3
@@ -76,6 +87,7 @@ export F3CHECK_SYMBOLS=/path/to/f3decomp_symbols.json
 export F3CHECK_INDEX=/path/to/function_index.json
 export FNV_DECOMP=/path/to/fnv_decomp
 export F3TWINS_CACHE=/path/to/private/f3twins-cache  # optional; default ./f3twins-cache
+export F3TWINS_SEEDS=/path/to/my_seeds.json          # optional; default ./seeds.json
 python f3twins.py build      # a few minutes, once; again when the shared symbols change
 python f3twins.py all        # precompute every function, seconds
 python f3twins.py 0x00664aa0 # look up; `live <addr>` shows the evidence behind each score

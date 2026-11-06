@@ -18,6 +18,7 @@ Setup (paths through environment variables; the first three are the same ones f3
   F3CHECK_INDEX    function_index.json     (f3decomp shared files)
   FNV_DECOMP       a clone of github.com/momusdigital/fnv_decomp
   F3TWINS_CACHE    where the index goes (default ./f3twins-cache). Derived from your game image: keep it private.
+  F3TWINS_SEEDS    optional extra known pairs, {"<F3 addr>": "<FNV addr>"} (default: seeds.json beside this script)
   pip install capstone   (Python 3.10+)
 
   python f3twins.py build              index both sides (a few minutes, once; again when the shared symbols update)
@@ -430,7 +431,15 @@ def validate(fnv, f3, names, holdout=0.0):
 
 
 def all_seeds(fnv, names):
-    m = reuse_pairs(fnv, names); m.update(seeds(fnv, names)); return m
+    m = reuse_pairs(fnv, names); m.update(seeds(fnv, names))
+    # Hand-confirmed pairs ({"<F3 addr>": "<FNV addr>"}): seeds.json beside this script, or F3TWINS_SEEDS.
+    extra = Path(os.environ.get('F3TWINS_SEEDS', Path(__file__).resolve().parent / 'seeds.json'))
+    if extra.exists():
+        by = {e['addr']: e for e in fnv}
+        for a, f in json.loads(extra.read_text()).items():
+            e = by.get(int(f, 16))
+            if e: m.setdefault(int(a, 16), e)
+    return m
 
 
 def _validate(label, sm, fnv, f3, names, seedmap=None):
@@ -461,9 +470,15 @@ def _validate(label, sm, fnv, f3, names, seedmap=None):
 def confidence(r):
     """Measured on a holdout with 80% of anchors hidden: high ~93% right at rank 1, medium ~76%, low ~45%."""
     if not r: return 'none'
+    shared = r[0][2] if len(r[0]) > 2 else set()
+    if shared and all(f.startswith('f:') for f in shared): return 'low'   # float constants alone mislead
     s1 = r[0][0]; s2 = r[1][0] if len(r) > 1 else 0.0
     q = s1 / max(s2, 0.1)
-    return 'high' if s1 >= 20 and q >= 2 else 'medium' if s1 >= 10 and q >= 1.5 else 'low'
+    strong = sum(1 for f in shared if f[:2] in ('s:', 't:', 'k:'))
+    calls = sum(1 for f in shared if f.startswith('c:'))
+    conf = 'high' if s1 >= 20 and q >= 2 else 'medium' if s1 >= 10 and q >= 1.5 else 'low'
+    if conf == 'high' and strong == 0 and calls < 2: conf = 'medium'      # anchoring alone is not enough for high
+    return conf
 
 
 def show(addrs, fnv, f3, names):
