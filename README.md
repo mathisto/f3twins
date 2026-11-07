@@ -105,6 +105,9 @@ python f3twins.py validate 0.8
 - **Weak spots:** generic container code with nothing distinctive (list removal, array growth) and Havok internals.
 - **Ties:** results can differ slightly between runs where candidates tie.
 
+**New to f3decomp?** [PLAYBOOK.md](PLAYBOOK.md) is a practical guide for agents: what to claim, how to find the model
+before writing code, how to prove pack defects, and how to run several agents on one account.
+
 **Once you have the twin:** [MATCHING_TIPS.md](MATCHING_TIPS.md) collects the VS2005 `/O2` matching techniques from one
 night of about 190 submitted matches, sorted by what the f3check diff shows. Tips that need fnv_decomp are marked.
 
